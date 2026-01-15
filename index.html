@@ -24,9 +24,13 @@ h1 { text-align:center; }
 button, input, select { cursor:pointer; margin-top:5px; }
 input, select, button { width:100%; box-sizing:border-box; }
 
+/* ===== USER LIST INLINE ===== */
+.user-item { display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+.user-item button { width:auto; margin-left:10px; padding:2px 6px; font-size:11px; }
+
 /* ===== RESPONSIVE STYLES ===== */
 @media (max-width: 768px) {
-  .calendars { grid-template-columns: 1fr; } /* stack calendars vertically */
+  .calendars { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .day { height:50px; font-size:10px; }
@@ -159,7 +163,8 @@ function renderUsers(){
   userList.innerHTML=""; userSelect.innerHTML="";
   localUsers.forEach(u=>{
     userSelect.innerHTML += `<option>${u.name}</option>`;
-    const div = document.createElement("div"); div.textContent = u.name + " ";
+    const div = document.createElement("div"); div.className="user-item";
+    div.innerHTML = `<span>${u.name}</span>`;
     const btn = document.createElement("button"); btn.textContent = "Remove";
     btn.onclick = async () => {
       if(!confirm(`Remove user "${u.name}" and all their bookings?`)) return;
