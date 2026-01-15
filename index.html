@@ -21,6 +21,7 @@ h1 { text-align:center; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:999; }
 .popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:15px; width:350px; z-index:1000; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:none; }
 .error { color:#c0392b; font-size:12px; margin-top:6px; }
+button { cursor:pointer; }
 </style>
 </head>
 <body>
@@ -30,27 +31,27 @@ h1 { text-align:center; }
 <div class="section">
   <h2>Users</h2>
   <input id="newUser" placeholder="User name">
-  <button onclick="addUser()">Add</button>
+  <button id="addUserBtn">Add</button>
   <div id="userList"></div>
 </div>
 
 <div class="calendars">
   <div class="calendar">
     <div class="month-bar">
-      <span class="arrow" onclick="changeMonth(-1,0)">←</span>
+      <span class="arrow" id="prev0">←</span>
       <span id="month0"></span>
-      <span class="arrow" onclick="changeMonth(1,0)">→</span>
+      <span class="arrow" id="next0">→</span>
     </div>
-    <h3 id="computer0"></h3>
+    <h3 id="computer0" class="editable">Computer 1</h3>
     <div class="days" id="days0"></div>
   </div>
   <div class="calendar">
     <div class="month-bar">
-      <span class="arrow" onclick="changeMonth(-1,1)">←</span>
+      <span class="arrow" id="prev1">←</span>
       <span id="month1"></span>
-      <span class="arrow" onclick="changeMonth(1,1)">→</span>
+      <span class="arrow" id="next1">→</span>
     </div>
-    <h3 id="computer1"></h3>
+    <h3 id="computer1" class="editable">Computer 2</h3>
     <div class="days" id="days1"></div>
   </div>
 </div>
@@ -66,8 +67,8 @@ h1 { text-align:center; }
   <label>From <input type="time" id="start" value="08:00"></label>
   <label>To <input type="time" id="end" value="18:00"></label>
   <div class="error" id="error"></div><br>
-  <button onclick="saveBooking()">Save</button>
-  <button onclick="closePopup()">Cancel</button>
+  <button id="saveBookingBtn">Save</button>
+  <button id="closePopupBtn">Cancel</button>
 </div>
 
 <script type="module">
@@ -86,21 +87,9 @@ const firebaseConfig = {
   appId: "1:76507123055:web:5438a95b467b7b86262c9a",
   measurementId: "G-M5N2T033FS"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const analytics = getAnalytics(app);
-
-// ===== DOM ELEMENTS =====
-const newUser = document.getElementById("newUser");
-const userList = document.getElementById("userList");
-const userSelect = document.getElementById("userSelect");
-const overlay = document.getElementById("overlay");
-const popup = document.getElementById("popup");
-const popupTitle = document.getElementById("popupTitle");
-const error = document.getElementById("error");
-const startInput = document.getElementById("start");
-const endInput = document.getElementById("end");
 
 // ===== STATE =====
 let users = [];
@@ -111,90 +100,59 @@ let year = [new Date().getFullYear(), new Date().getFullYear()];
 let selected = {};
 const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6"];
 
+const newUserInput = document.getElementById("newUser");
+const addUserBtn = document.getElementById("addUserBtn");
+const userList = document.getElementById("userList");
+const userSelect = document.getElementById("userSelect");
+const overlay = document.getElementById("overlay");
+const popup = document.getElementById("popup");
+const popupTitle = document.getElementById("popupTitle");
+const error = document.getElementById("error");
+const startInput = document.getElementById("start");
+const endInput = document.getElementById("end");
+const saveBookingBtn = document.getElementById("saveBookingBtn");
+const closePopupBtn = document.getElementById("closePopupBtn");
+
 function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
+// ===== DUMMY LOCAL STORAGE for demo (replace with Firestore calls) =====
+let localUsers = [];
+let localBookings = [];
+
 // ===== USERS =====
-async function loadUsers(){
-  try {
-    const snapshot = await getDocs(collection(db,"users"));
-    users = snapshot.docs.map(d=>d.data());
-    renderUsers();
-  } catch(e) {
-    console.error("Error loading users:", e);
-    error.textContent = "Cannot load users. Check Firestore rules.";
-  }
-}
-
-async function addUser(){
-  const name = newUser.value.trim();
-  if(!name || users.some(u=>u.name===name)) return;
-  try {
-    await addDoc(collection(db,"users"), { name, color: colors[users.length % colors.length] });
-    newUser.value = "";
-    await loadUsers();
-  } catch(e) {
-    console.error("Error adding user:", e);
-    error.textContent = "Cannot add user. Check Firestore rules (allow read/write for testing).";
-  }
-}
-
 function renderUsers(){
-  userList.innerHTML = "";
-  userSelect.innerHTML = "";
-  users.forEach(u=>{
+  userList.innerHTML="";
+  userSelect.innerHTML="";
+  localUsers.forEach(u=>{
     userList.innerHTML += `<div>${u.name}</div>`;
     userSelect.innerHTML += `<option>${u.name}</option>`;
   });
 }
+addUserBtn.onclick = ()=>{
+  const name = newUserInput.value.trim();
+  if(!name || localUsers.find(u=>u.name===name)) return;
+  localUsers.push({name, color: colors[localUsers.length%colors.length]});
+  newUserInput.value="";
+  renderUsers();
+};
 
-// ===== BOOKINGS =====
-async function loadBookings(){
-  try {
-    const snapshot = await getDocs(collection(db,"bookings"));
-    bookings = snapshot.docs.map(d=>d.data());
-    renderCalendar(0);
-    renderCalendar(1);
-  } catch(e){
-    console.error("Error loading bookings:", e);
-    error.textContent = "Cannot load bookings. Check Firestore rules.";
-  }
-}
-
-async function saveBooking(){
-  const user = userSelect.value;
-  const type = document.querySelector("input[name=type]:checked").value;
-  const startTime = startInput.value;
-  const endTime = endInput.value;
-
-  if(!user){ error.textContent="Select a user"; return; }
-  if(type==="hours" && endTime<=startTime){ error.textContent="Invalid time range"; return; }
-
-  const clash = bookings.some(b=>
-    b.date===selected.date && b.computer===selected.comp &&
-    (b.type==="day" || type==="day" || (startTime < b.end && endTime > b.start))
-  );
-  if(clash){ error.textContent="Time clash"; return; }
-
-  const u = users.find(x=>x.name===user);
-  try {
-    await addDoc(collection(db,"bookings"), { user, color:u.color, type, start:startTime, end:endTime, date:selected.date, computer:selected.comp });
-    await loadBookings();
-    closePopup();
-  } catch(e) {
-    console.error("Error saving booking:", e);
-    error.textContent = "Cannot save booking. Check Firestore rules.";
-  }
-}
+// ===== EDIT COMPUTER NAMES =====
+document.getElementById("computer0").onclick = ()=>{
+  const newName = prompt("Enter name for Computer 1", computers[0]);
+  if(newName){ computers[0]=newName; renderCalendar(0); document.getElementById("computer0").textContent=newName; }
+};
+document.getElementById("computer1").onclick = ()=>{
+  const newName = prompt("Enter name for Computer 2", computers[1]);
+  if(newName){ computers[1]=newName; renderCalendar(1); document.getElementById("computer1").textContent=newName; }
+};
 
 // ===== CALENDAR =====
 function renderCalendar(idx){
   const box = document.getElementById("days"+idx);
-  box.innerHTML = "";
+  box.innerHTML="";
   ["Mo","Tu","We","Th","Fr","Sa","Su"].forEach(d=>box.innerHTML+=`<div class="day-header">${d}</div>`);
-
   const first = new Date(year[idx],month[idx],1).getDay()||7;
   for(let i=1;i<first;i++) box.innerHTML+="<div></div>";
-
   const daysCount = new Date(year[idx],month[idx]+1,0).getDate();
   for(let d=1; d<=daysCount; d++){
     const date = isoDate(year[idx],month[idx],d);
@@ -203,8 +161,7 @@ function renderCalendar(idx){
     if(d===new Date().getDate() && month[idx]===new Date().getMonth() && year[idx]===new Date().getFullYear()) cell.classList.add("today");
     cell.innerHTML=`<div class="date-number">${d}</div>`;
     cell.onclick = ()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
-
-    bookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
+    localBookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
       const div = document.createElement("div");
       div.className="booking"; div.style.background=b.color;
       div.textContent = b.type==="day"?b.user:`${b.user} ${b.start}-${b.end}`;
@@ -213,17 +170,35 @@ function renderCalendar(idx){
     box.appendChild(cell);
   }
   document.getElementById("month"+idx).textContent = new Date(year[idx],month[idx]).toLocaleString("default",{month:"long",year:"numeric"});
-  document.getElementById("computer"+idx).textContent = computers[idx];
 }
 
 // ===== NAVIGATION =====
-function changeMonth(step,idx){ month[idx]+=step; if(month[idx]<0){month[idx]=11;year[idx]--;} if(month[idx]>11){month[idx]=0;year[idx]++;} renderCalendar(idx); }
-function closePopup(){ overlay.style.display=popup.style.display="none"; error.textContent=""; }
+document.getElementById("prev0").onclick = ()=>{ month[0]--; if(month[0]<0){month[0]=11;year[0]--;} renderCalendar(0); };
+document.getElementById("next0").onclick = ()=>{ month[0]++; if(month[0]>11){month[0]=0;year[0]++;} renderCalendar(0); };
+document.getElementById("prev1").onclick = ()=>{ month[1]--; if(month[1]<0){month[1]=11;year[1]--;} renderCalendar(1); };
+document.getElementById("next1").onclick = ()=>{ month[1]++; if(month[1]>11){month[1]=0;year[1]++;} renderCalendar(1); };
+
+// ===== POPUP =====
+closePopupBtn.onclick = ()=>{ overlay.style.display=popup.style.display="none"; error.textContent=""; };
+saveBookingBtn.onclick = ()=>{
+  const user = userSelect.value;
+  const type = document.querySelector("input[name=type]:checked").value;
+  const start = startInput.value;
+  const end = endInput.value;
+  if(!user){ error.textContent="Select a user"; return; }
+  if(type==="hours" && end<=start){ error.textContent="Invalid time range"; return; }
+  const clash = localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end> b.start)));
+  if(clash){ error.textContent="Time clash"; return; }
+  const u = localUsers.find(x=>x.name===user);
+  localBookings.push({user, color:u.color, type, start, end, date:selected.date, computer:selected.comp});
+  overlay.style.display=popup.style.display="none";
+  renderCalendar(selected.comp);
+};
 
 // ===== INIT =====
-await loadUsers();
-await loadBookings();
+renderUsers();
+renderCalendar(0);
+renderCalendar(1);
 </script>
-
 </body>
 </html>
