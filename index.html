@@ -24,6 +24,7 @@ h1 { text-align:center; }
 </style>
 </head>
 <body>
+
 <h1>Lab Booking System</h1>
 
 <div class="section">
@@ -71,10 +72,10 @@ h1 { text-align:center; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc, query, where } 
+import { getFirestore, collection, getDocs, addDoc } 
   from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-// ========== FIREBASE CONFIG ==========
+// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyBEs0MJIB5uJZ_HF73jd3kjd3ltU0hrFVw",
   authDomain: "labbookingsystem2026.firebaseapp.com",
@@ -84,26 +85,39 @@ const firebaseConfig = {
   appId: "1:76507123055:web:5438a95b467b7b86262c9a",
   measurementId: "G-M5N2T033FS"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ========== STATE ==========
+// ===== DOM ELEMENTS =====
+const newUser = document.getElementById("newUser");
+const userList = document.getElementById("userList");
+const userSelect = document.getElementById("userSelect");
+const overlay = document.getElementById("overlay");
+const popup = document.getElementById("popup");
+const popupTitle = document.getElementById("popupTitle");
+const error = document.getElementById("error");
+const startInput = document.getElementById("start");
+const endInput = document.getElementById("end");
+
+// ===== STATE =====
 let users = [];
 let bookings = [];
-let computers = ["Computer 1", "Computer 2"];
+let computers = ["Computer 1","Computer 2"];
 let month = [new Date().getMonth(), new Date().getMonth()];
 let year = [new Date().getFullYear(), new Date().getFullYear()];
 let selected = {};
 const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6"];
 
-// ========== HELPERS ==========
 function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
-// ========== USERS ==========
+// ===== USERS =====
 async function loadUsers(){
-  users = (await getDocs(collection(db,"users"))).docs.map(d=>d.data());
+  const snapshot = await getDocs(collection(db,"users"));
+  users = snapshot.docs.map(d=>d.data());
   renderUsers();
 }
+
 async function addUser(){
   const name = newUser.value.trim();
   if(!name || users.some(u=>u.name===name)) return;
@@ -111,6 +125,7 @@ async function addUser(){
   newUser.value = "";
   await loadUsers();
 }
+
 function renderUsers(){
   userList.innerHTML = "";
   userSelect.innerHTML = "";
@@ -120,33 +135,36 @@ function renderUsers(){
   });
 }
 
-// ========== BOOKINGS ==========
+// ===== BOOKINGS =====
 async function loadBookings(){
-  bookings = (await getDocs(collection(db,"bookings"))).docs.map(d=>d.data());
+  const snapshot = await getDocs(collection(db,"bookings"));
+  bookings = snapshot.docs.map(d=>d.data());
   renderCalendar(0);
   renderCalendar(1);
 }
+
 async function saveBooking(){
   const user = userSelect.value;
   const type = document.querySelector("input[name=type]:checked").value;
-  const start = start.value;
-  const end = end.value;
-  if(!user){ error.textContent="Select a user"; return; }
-  if(type==="hours" && end<=start){ error.textContent="Invalid time range"; return; }
+  const startTime = startInput.value;
+  const endTime = endInput.value;
 
-  const clash = bookings.some(b=> 
+  if(!user){ error.textContent="Select a user"; return; }
+  if(type==="hours" && endTime<=startTime){ error.textContent="Invalid time range"; return; }
+
+  const clash = bookings.some(b=>
     b.date===selected.date && b.computer===selected.comp &&
-    (b.type==="day" || type==="day" || (start<b.end && end>b.start))
+    (b.type==="day" || type==="day" || (startTime < b.end && endTime > b.start))
   );
   if(clash){ error.textContent="Time clash"; return; }
 
   const u = users.find(x=>x.name===user);
-  await addDoc(collection(db,"bookings"), { user, color:u.color, type, start, end, date:selected.date, computer:selected.comp });
+  await addDoc(collection(db,"bookings"), { user, color:u.color, type, start:startTime, end:endTime, date:selected.date, computer:selected.comp });
   await loadBookings();
   closePopup();
 }
 
-// ========== CALENDAR ==========
+// ===== CALENDAR =====
 function renderCalendar(idx){
   const box = document.getElementById("days"+idx);
   box.innerHTML = "";
@@ -154,14 +172,15 @@ function renderCalendar(idx){
 
   const first = new Date(year[idx],month[idx],1).getDay()||7;
   for(let i=1;i<first;i++) box.innerHTML+="<div></div>";
-  const days = new Date(year[idx],month[idx]+1,0).getDate();
-  for(let d=1; d<=days; d++){
+
+  const daysCount = new Date(year[idx],month[idx]+1,0).getDate();
+  for(let d=1; d<=daysCount; d++){
     const date = isoDate(year[idx],month[idx],d);
     const cell = document.createElement("div");
-    cell.className = "day";
+    cell.className="day";
     if(d===new Date().getDate() && month[idx]===new Date().getMonth() && year[idx]===new Date().getFullYear()) cell.classList.add("today");
     cell.innerHTML=`<div class="date-number">${d}</div>`;
-    cell.onclick=()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
+    cell.onclick = ()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
 
     bookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
       const div = document.createElement("div");
@@ -175,13 +194,14 @@ function renderCalendar(idx){
   document.getElementById("computer"+idx).textContent = computers[idx];
 }
 
-// ========== NAVIGATION ==========
+// ===== NAVIGATION =====
 function changeMonth(step,idx){ month[idx]+=step; if(month[idx]<0){month[idx]=11;year[idx]--;} if(month[idx]>11){month[idx]=0;year[idx]++;} renderCalendar(idx); }
 function closePopup(){ overlay.style.display=popup.style.display="none"; error.textContent=""; }
 
-// ========== INIT ==========
+// ===== INIT =====
 await loadUsers();
 await loadBookings();
 </script>
+
 </body>
 </html>
