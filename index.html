@@ -2,202 +2,186 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Lab Booking System – Editable</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab Booking System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-  h1 { text-align:center; }
-
-  .section { max-width:1100px; margin:20px auto; background:#fff; padding:15px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-
-  .editable { cursor: pointer; padding:2px 4px; border-bottom:1px dashed #555; }
-
-  .calendars { display:grid; grid-template-columns:1fr 1fr; gap:30px; max-width:1100px; margin:auto; }
-  .calendar { background:white; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); padding:10px; position:relative; }
-  .calendar h3 { text-align:center; margin:5px 0; }
-  .month-title { text-align:center; font-weight:bold; margin-bottom:5px; }
-  .arrow { cursor:pointer; font-weight:bold; padding:0 10px; user-select:none; }
-
-  .days { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:12px; }
-  .day-header { text-align:center; font-weight:bold; }
-  .day { height:70px; border:1px solid #ccc; position:relative; cursor:pointer; background-color:transparent; }
-  .day.today { border:3px solid #000; }
-  .date-number { position:absolute; top:2px; left:4px; font-size:11px; z-index:1; }
-
-  .booking { position:relative; margin-top:2px; font-size:11px; color:white; padding:2px 4px; border-radius:3px; cursor:pointer; background-color:rgba(0,0,0,0.6); }
-
-  .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:999; }
-  .popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:15px; width:350px; z-index:1000; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:none; }
-  .popup label { display:block; margin-top:8px; }
-  .error { color:#c0392b; font-size:12px; margin-top:6px; }
+body { font-family: Arial,sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+h1 { text-align:center; }
+.section { max-width:1100px; margin:20px auto; background:#fff; padding:15px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.calendars { display:grid; grid-template-columns:1fr 1fr; gap:30px; }
+.calendar { background:white; border-radius:6px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.month-bar { text-align:center; font-weight:bold; margin-bottom:5px; }
+.arrow { cursor:pointer; padding:0 10px; user-select:none; }
+.days { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:12px; }
+.day-header { text-align:center; font-weight:bold; }
+.day { height:70px; border:1px solid #ccc; position:relative; cursor:pointer; }
+.day.today { border:3px solid #000; }
+.date-number { position:absolute; bottom:2px; left:2px; font-size:11px; z-index:1; }
+.booking { font-size:11px; color:white; padding:2px 4px; border-radius:3px; margin-top:2px; cursor:pointer; display:block; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:999; }
+.popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:15px; width:350px; z-index:1000; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:none; }
+.error { color:#c0392b; font-size:12px; margin-top:6px; }
 </style>
 </head>
 <body>
-
 <h1>Lab Booking System</h1>
 
 <div class="section">
-  <h2>User Management</h2>
-  <input type="text" id="newUser" placeholder="Enter user name" />
-  <button onclick="addUser()">Add User</button>
+  <h2>Users</h2>
+  <input id="newUser" placeholder="User name">
+  <button onclick="addUser()">Add</button>
   <div id="userList"></div>
 </div>
 
 <div class="calendars">
   <div class="calendar">
-    <div style="text-align:center; margin-bottom:5px;"><span class="arrow" onclick="changeMonth(-1,0)">&#8592;</span> <span class="month-title" id="monthC1"></span> <span class="arrow" onclick="changeMonth(1,0)">&#8594;</span></div>
-    <h3 id="titleC1" class="editable"></h3>
-    <div class="days" id="daysC1"></div>
+    <div class="month-bar">
+      <span class="arrow" onclick="changeMonth(-1,0)">←</span>
+      <span id="month0"></span>
+      <span class="arrow" onclick="changeMonth(1,0)">→</span>
+    </div>
+    <h3 id="computer0"></h3>
+    <div class="days" id="days0"></div>
   </div>
   <div class="calendar">
-    <div style="text-align:center; margin-bottom:5px;"><span class="arrow" onclick="changeMonth(-1,1)">&#8592;</span> <span class="month-title" id="monthC2"></span> <span class="arrow" onclick="changeMonth(1,1)">&#8594;</span></div>
-    <h3 id="titleC2" class="editable"></h3>
-    <div class="days" id="daysC2"></div>
+    <div class="month-bar">
+      <span class="arrow" onclick="changeMonth(-1,1)">←</span>
+      <span id="month1"></span>
+      <span class="arrow" onclick="changeMonth(1,1)">→</span>
+    </div>
+    <h3 id="computer1"></h3>
+    <div class="days" id="days1"></div>
   </div>
 </div>
 
 <div class="overlay" id="overlay"></div>
 <div class="popup" id="popup">
-  <h3 id="popupDate"></h3>
+  <h3 id="popupTitle"></h3>
   <label>User:
     <select id="userSelect"></select>
   </label>
-  <label><input type="radio" name="type" value="day" checked /> Whole day</label>
-  <label><input type="radio" name="type" value="hours" /> Specific duration</label>
-  <label>From: <input type="time" id="startTime" value="08:00" /></label>
-  <label>To: <input type="time" id="endTime" value="18:00" /></label>
-  <div class="error" id="error"></div>
-  <br/>
+  <label><input type="radio" name="type" value="day" checked> Whole day</label>
+  <label><input type="radio" name="type" value="hours"> Time range</label>
+  <label>From <input type="time" id="start" value="08:00"></label>
+  <label>To <input type="time" id="end" value="18:00"></label>
+  <div class="error" id="error"></div><br>
   <button onclick="saveBooking()">Save</button>
-  <button onclick="deleteBooking()">Delete</button>
   <button onclick="closePopup()">Cancel</button>
 </div>
 
-<script>
-const STORE = 'labBookings';
-let bookings = JSON.parse(localStorage.getItem(STORE) || '{}');
-let computers = ['Computer 1','Computer 2'];
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, query, where } 
+  from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+// ========== FIREBASE CONFIG ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyBEs0MJIB5uJZ_HF73jd3kjd3ltU0hrFVw",
+  authDomain: "labbookingsystem2026.firebaseapp.com",
+  projectId: "labbookingsystem2026",
+  storageBucket: "labbookingsystem2026.firebasestorage.app",
+  messagingSenderId: "76507123055",
+  appId: "1:76507123055:web:5438a95b467b7b86262c9a",
+  measurementId: "G-M5N2T033FS"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ========== STATE ==========
 let users = [];
-let months = [new Date().getMonth(), new Date().getMonth()];
-let years = [new Date().getFullYear(), new Date().getFullYear()];
-let today = new Date().getDate();
-let selectedCell, selectedCompIndex, selectedDate;
-const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const userColors = {};
-const colorPalette = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#e67e22','#1abc9c','#34495e'];
+let bookings = [];
+let computers = ["Computer 1", "Computer 2"];
+let month = [new Date().getMonth(), new Date().getMonth()];
+let year = [new Date().getFullYear(), new Date().getFullYear()];
+let selected = {};
+const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6"];
 
-function addUser(){
-  let name = document.getElementById('newUser').value.trim();
-  if(!name || users.includes(name)) return;
-  users.push(name);
-  if(!userColors[name]) userColors[name] = colorPalette[Object.keys(userColors).length % colorPalette.length];
-  document.getElementById('newUser').value='';
-  renderUserList();
+// ========== HELPERS ==========
+function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+
+// ========== USERS ==========
+async function loadUsers(){
+  users = (await getDocs(collection(db,"users"))).docs.map(d=>d.data());
+  renderUsers();
 }
-
-function renderUserList(){
-  let list = document.getElementById('userList'); list.innerHTML='';
-  let sel = document.getElementById('userSelect'); sel.innerHTML='';
+async function addUser(){
+  const name = newUser.value.trim();
+  if(!name || users.some(u=>u.name===name)) return;
+  await addDoc(collection(db,"users"), { name, color: colors[users.length % colors.length] });
+  newUser.value = "";
+  await loadUsers();
+}
+function renderUsers(){
+  userList.innerHTML = "";
+  userSelect.innerHTML = "";
   users.forEach(u=>{
-    let opt = document.createElement('option'); opt.value=u; opt.textContent=u; sel.appendChild(opt);
-    let div = document.createElement('div'); div.textContent=u; list.appendChild(div);
+    userList.innerHTML += `<div>${u.name}</div>`;
+    userSelect.innerHTML += `<option>${u.name}</option>`;
   });
 }
 
-function updateComputerLabels(){
-  document.getElementById('titleC1').textContent=computers[0];
-  document.getElementById('titleC2').textContent=computers[1];
-  document.getElementById('monthC1').textContent = monthNames[months[0]] + ' ' + years[0];
-  document.getElementById('monthC2').textContent = monthNames[months[1]] + ' ' + years[1];
+// ========== BOOKINGS ==========
+async function loadBookings(){
+  bookings = (await getDocs(collection(db,"bookings"))).docs.map(d=>d.data());
+  renderCalendar(0);
+  renderCalendar(1);
 }
+async function saveBooking(){
+  const user = userSelect.value;
+  const type = document.querySelector("input[name=type]:checked").value;
+  const start = start.value;
+  const end = end.value;
+  if(!user){ error.textContent="Select a user"; return; }
+  if(type==="hours" && end<=start){ error.textContent="Invalid time range"; return; }
 
-function buildCalendar(containerId, compIndex){
-  const container = document.getElementById(containerId); container.innerHTML='';
-  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d=>{ let h=document.createElement('div'); h.className='day-header'; h.textContent=d; container.appendChild(h);});
-  let first = new Date(years[compIndex],months[compIndex],1).getDay()||7;
-  for(let i=1;i<first;i++) container.appendChild(document.createElement('div'));
-  let dim = new Date(years[compIndex],months[compIndex]+1,0).getDate();
-  for(let d=1;d<=dim;d++){
-    let cell=document.createElement('div'); cell.className='day'; 
-    if(d===today && months[compIndex]===new Date().getMonth() && years[compIndex]===new Date().getFullYear()) cell.classList.add('today');
-    let dateStr=`${years[compIndex]}-${months[compIndex]+1}-${d}`; cell.innerHTML=`<div class='date-number'>${d}</div>`;
-    cell.onclick=()=>openPopup(cell,compIndex,dateStr);
-    container.appendChild(cell);
-    let key=`${dateStr}-${compIndex}`; if(bookings[key]) renderBooking(cell,bookings[key],compIndex);
-  }
-}
+  const clash = bookings.some(b=> 
+    b.date===selected.date && b.computer===selected.comp &&
+    (b.type==="day" || type==="day" || (start<b.end && end>b.start))
+  );
+  if(clash){ error.textContent="Time clash"; return; }
 
-function renderBooking(cell,data,compIndex){
-  cell.querySelector('.booking')?.remove();
-  let b=document.createElement('div'); b.className='booking';
-  let initials = data.user.split(' ').map(n=>n[0].toUpperCase()).join('');
-  b.textContent = data.type==='day'?initials:`${initials} ${data.start}-${data.end}`;
-  b.style.backgroundColor = userColors[data.user] || 'rgba(0,0,0,0.6)';
-  b.onclick=e=>{ e.stopPropagation(); openPopup(cell,compIndex,data.date,data); };
-  cell.appendChild(b);
-}
-
-function openPopup(cell, compIndex, date, data=null){
-  selectedCell=cell; selectedCompIndex=compIndex; selectedDate=date;
-  document.getElementById('popupDate').textContent=`${date} – ${computers[compIndex]}`;
-  document.getElementById('overlay').style.display='block';
-  document.getElementById('popup').style.display='block';
-  document.getElementById('error').textContent='';
-  let userSelect=document.getElementById('userSelect');
-  userSelect.value = data?data.user:'';
-  if(data){
-    document.querySelector(`input[name='type'][value='${data.type}']`).checked=true;
-    document.getElementById('startTime').value=data.start||'08:00';
-    document.getElementById('endTime').value=data.end||'18:00';
-  } else {
-    document.querySelector(`input[name='type'][value='day']`).checked=true;
-    document.getElementById('startTime').value='08:00';
-    document.getElementById('endTime').value='18:00';
-  }
-}
-
-function closePopup(){ document.getElementById('popup').style.display='none'; document.getElementById('overlay').style.display='none'; }
-
-function saveBooking(){
-  let user=document.getElementById('userSelect').value;
-  if(!user){document.getElementById('error').textContent='Select a user'; return;}
-  let type=document.querySelector('input[name="type"]:checked').value;
-  let start=document.getElementById('startTime').value;
-  let end=document.getElementById('endTime').value;
-  if(type==='hours' && end<=start){document.getElementById('error').textContent='Invalid time range'; return;}
-  let key=`${selectedDate}-${selectedCompIndex}`;
-  bookings[key]={user,type,start,end,date:selectedDate};
-  localStorage.setItem(STORE, JSON.stringify(bookings));
-  renderBooking(selectedCell,bookings[key],selectedCompIndex);
+  const u = users.find(x=>x.name===user);
+  await addDoc(collection(db,"bookings"), { user, color:u.color, type, start, end, date:selected.date, computer:selected.comp });
+  await loadBookings();
   closePopup();
 }
 
-function deleteBooking(){
-  let key=`${selectedDate}-${selectedCompIndex}`;
-  delete bookings[key];
-  localStorage.setItem(STORE, JSON.stringify(bookings));
-  selectedCell.querySelector('.booking')?.remove();
-  closePopup();
+// ========== CALENDAR ==========
+function renderCalendar(idx){
+  const box = document.getElementById("days"+idx);
+  box.innerHTML = "";
+  ["Mo","Tu","We","Th","Fr","Sa","Su"].forEach(d=>box.innerHTML+=`<div class="day-header">${d}</div>`);
+
+  const first = new Date(year[idx],month[idx],1).getDay()||7;
+  for(let i=1;i<first;i++) box.innerHTML+="<div></div>";
+  const days = new Date(year[idx],month[idx]+1,0).getDate();
+  for(let d=1; d<=days; d++){
+    const date = isoDate(year[idx],month[idx],d);
+    const cell = document.createElement("div");
+    cell.className = "day";
+    if(d===new Date().getDate() && month[idx]===new Date().getMonth() && year[idx]===new Date().getFullYear()) cell.classList.add("today");
+    cell.innerHTML=`<div class="date-number">${d}</div>`;
+    cell.onclick=()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
+
+    bookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
+      const div = document.createElement("div");
+      div.className="booking"; div.style.background=b.color;
+      div.textContent = b.type==="day"?b.user:`${b.user} ${b.start}-${b.end}`;
+      cell.appendChild(div);
+    });
+    box.appendChild(cell);
+  }
+  document.getElementById("month"+idx).textContent = new Date(year[idx],month[idx]).toLocaleString("default",{month:"long",year:"numeric"});
+  document.getElementById("computer"+idx).textContent = computers[idx];
 }
 
-function changeMonth(offset, compIndex){
-  months[compIndex] += offset;
-  if(months[compIndex]>11){months[compIndex]=0; years[compIndex]+=1;}
-  if(months[compIndex]<0){months[compIndex]=11; years[compIndex]-=1;}
-  updateComputerLabels();
-  buildCalendar('daysC1',0);
-  buildCalendar('daysC2',1);
-}
+// ========== NAVIGATION ==========
+function changeMonth(step,idx){ month[idx]+=step; if(month[idx]<0){month[idx]=11;year[idx]--;} if(month[idx]>11){month[idx]=0;year[idx]++;} renderCalendar(idx); }
+function closePopup(){ overlay.style.display=popup.style.display="none"; error.textContent=""; }
 
-// Editable computer names directly
-document.getElementById('titleC1').onclick = ()=>{ let newName=prompt('Enter name for Computer 1',computers[0]); if(newName){computers[0]=newName; updateComputerLabels();}};
-document.getElementById('titleC2').onclick = ()=>{ let newName=prompt('Enter name for Computer 2',computers[1]); if(newName){computers[1]=newName; updateComputerLabels();}};
-
-renderUserList();
-updateComputerLabels();
-buildCalendar('daysC1',0);
-buildCalendar('daysC2',1);
+// ========== INIT ==========
+await loadUsers();
+await loadBookings();
 </script>
-
 </body>
 </html>
