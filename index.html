@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LEE Comsol Computer Booking</title>
+<title>Lab Booking System – Firebase Version</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial,sans-serif; background:#f4f6f8; margin:0; padding:20px; }
@@ -21,12 +21,24 @@ h1 { text-align:center; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:999; }
 .popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:15px; width:350px; z-index:1000; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:none; }
 .error { color:#c0392b; font-size:12px; margin-top:6px; }
-button { cursor:pointer; margin-top:5px; }
+button, input, select { cursor:pointer; margin-top:5px; }
+input, select, button { width:100%; box-sizing:border-box; }
+
+/* ===== RESPONSIVE STYLES ===== */
+@media (max-width: 768px) {
+  .calendars { grid-template-columns: 1fr; } /* stack calendars vertically */
+}
+@media (max-width: 480px) {
+  .day { height:50px; font-size:10px; }
+  .day-header { font-size:10px; }
+  .booking { font-size:9px; padding:1px 3px; }
+  .popup { width:90%; }
+}
 </style>
 </head>
 <body>
 
-<h1>LEE Comsol Computer Booking</h1>
+<h1>Lab Booking System – Firebase Version</h1>
 
 <div class="section">
   <h2>Users</h2>
@@ -74,7 +86,7 @@ button { cursor:pointer; margin-top:5px; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, setDoc, getDocs, addDoc, deleteDoc, query, where } 
+import { getFirestore, collection, doc, getDoc, setDoc, getDocs, addDoc, deleteDoc } 
   from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -120,9 +132,7 @@ async function loadComputers() {
   document.getElementById("computer1").textContent = computers[1];
 }
 
-async function saveComputers() {
-  await setDoc(doc(db,"settings","computers"), { names: computers });
-}
+async function saveComputers() { await setDoc(doc(db,"settings","computers"), { names: computers }); }
 
 async function loadUsers() {
   const usersSnap = await getDocs(collection(db,"users"));
@@ -131,81 +141,53 @@ async function loadUsers() {
   renderUsers();
 }
 
-async function addUserToFirestore(name) {
-  await addDoc(collection(db,"users"), { name });
-  await loadUsers();
-}
+async function addUserToFirestore(name) { await addDoc(collection(db,"users"), { name }); await loadUsers(); }
 
 async function loadBookings() {
   const bookingsSnap = await getDocs(collection(db,"bookings"));
   localBookings = [];
   bookingsSnap.forEach(b=>localBookings.push({...b.data(), id:b.id}));
-  renderCalendar(0);
-  renderCalendar(1);
+  renderCalendar(0); renderCalendar(1);
 }
 
-async function addBookingToFirestore(b) {
-  await addDoc(collection(db,"bookings"), b);
-  await loadBookings();
-}
+async function addBookingToFirestore(b) { await addDoc(collection(db,"bookings"), b); await loadBookings(); }
 
 // ===== RENDER FUNCTIONS =====
 function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
 function renderUsers(){
-  userList.innerHTML="";
-  userSelect.innerHTML="";
+  userList.innerHTML=""; userSelect.innerHTML="";
   localUsers.forEach(u=>{
-    // dropdown
     userSelect.innerHTML += `<option>${u.name}</option>`;
-    
-    // list with remove button
-    const div = document.createElement("div");
-    div.textContent = u.name + " ";
-    const btn = document.createElement("button");
-    btn.textContent = "Remove";
+    const div = document.createElement("div"); div.textContent = u.name + " ";
+    const btn = document.createElement("button"); btn.textContent = "Remove";
     btn.onclick = async () => {
       if(!confirm(`Remove user "${u.name}" and all their bookings?`)) return;
-
-      // Remove user
       const usersSnap = await getDocs(collection(db,"users"));
-      for(const docSnap of usersSnap.docs){
-        if(docSnap.data().name === u.name) await deleteDoc(docSnap.ref);
-      }
-
-      // Remove bookings
+      for(const docSnap of usersSnap.docs){ if(docSnap.data().name === u.name) await deleteDoc(docSnap.ref); }
       const bookingsSnap = await getDocs(collection(db,"bookings"));
-      for(const docSnap of bookingsSnap.docs){
-        if(docSnap.data().user === u.name) await deleteDoc(docSnap.ref);
-      }
-
-      await loadUsers();
-      await loadBookings();
+      for(const docSnap of bookingsSnap.docs){ if(docSnap.data().user === u.name) await deleteDoc(docSnap.ref); }
+      await loadUsers(); await loadBookings();
     };
-    div.appendChild(btn);
-    userList.appendChild(div);
+    div.appendChild(btn); userList.appendChild(div);
   });
 }
 
 function renderCalendar(idx){
-  const box = document.getElementById("days"+idx);
-  box.innerHTML="";
+  const box = document.getElementById("days"+idx); box.innerHTML="";
   ["Mo","Tu","We","Th","Fr","Sa","Su"].forEach(d=>box.innerHTML+=`<div class="day-header">${d}</div>`);
   const first = new Date(year[idx],month[idx],1).getDay()||7;
   for(let i=1;i<first;i++) box.innerHTML+="<div></div>";
   const daysCount = new Date(year[idx],month[idx]+1,0).getDate();
   for(let d=1; d<=daysCount; d++){
     const date = isoDate(year[idx],month[idx],d);
-    const cell = document.createElement("div");
-    cell.className="day";
+    const cell = document.createElement("div"); cell.className="day";
     if(d===new Date().getDate() && month[idx]===new Date().getMonth() && year[idx]===new Date().getFullYear()) cell.classList.add("today");
     cell.innerHTML=`<div class="date-number">${d}</div>`;
     cell.onclick = ()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
     localBookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
-      const div = document.createElement("div");
-      div.className="booking"; div.style.background=b.color || colors[0];
-      div.textContent = b.type==="day"?b.user:`${b.user} ${b.start}-${b.end}`;
-      cell.appendChild(div);
+      const div = document.createElement("div"); div.className="booking"; div.style.background=b.color || colors[0];
+      div.textContent = b.type==="day"?b.user:`${b.user} ${b.start}-${b.end}`; cell.appendChild(div);
     });
     box.appendChild(cell);
   }
@@ -213,56 +195,29 @@ function renderCalendar(idx){
 }
 
 // ===== EVENTS =====
-addUserBtn.onclick = async ()=>{
-  const name = newUserInput.value.trim();
-  if(!name || localUsers.find(u=>u.name===name)) return;
-  await addUserToFirestore(name);
-  newUserInput.value="";
-};
-
-document.getElementById("computer0").onclick = async ()=>{
-  const newName = prompt("Enter name for Computer 1", computers[0]);
-  if(newName){ computers[0]=newName; await saveComputers(); renderCalendar(0); document.getElementById("computer0").textContent=newName; }
-};
-document.getElementById("computer1").onclick = async ()=>{
-  const newName = prompt("Enter name for Computer 2", computers[1]);
-  if(newName){ computers[1]=newName; await saveComputers(); renderCalendar(1); document.getElementById("computer1").textContent=newName; }
-};
-
+addUserBtn.onclick = async ()=>{ const name=newUserInput.value.trim(); if(!name||localUsers.find(u=>u.name===name)) return; await addUserToFirestore(name); newUserInput.value=""; };
+document.getElementById("computer0").onclick = async ()=>{ const newName=prompt("Enter name for Computer 1", computers[0]); if(newName){ computers[0]=newName; await saveComputers(); renderCalendar(0); document.getElementById("computer0").textContent=newName; }};
+document.getElementById("computer1").onclick = async ()=>{ const newName=prompt("Enter name for Computer 2", computers[1]); if(newName){ computers[1]=newName; await saveComputers(); renderCalendar(1); document.getElementById("computer1").textContent=newName; }};
 closePopupBtn.onclick = ()=>{ overlay.style.display=popup.style.display="none"; error.textContent=""; };
 
-// SAVE BOOKING
 saveBookingBtn.onclick = async ()=>{
-  const user = userSelect.value;
-  const type = document.querySelector("input[name=type]:checked").value;
-  const start = startInput.value;
-  const end = endInput.value;
+  const user=userSelect.value; const type=document.querySelector("input[name=type]:checked").value; const start=startInput.value; const end=endInput.value;
   if(!user){ error.textContent="Select a user"; return; }
   if(type==="hours" && end<=start){ error.textContent="Invalid time range"; return; }
-  const clash = localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end>b.start)));
+  const clash=localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end>b.start)));
   if(clash){ error.textContent="Time clash"; return; }
-  const u = localUsers.find(x=>x.name===user);
-  await addBookingToFirestore({user, color:u.color, type, start, end, date:selected.date, computer:selected.comp});
+  const u=localUsers.find(x=>x.name===user); await addBookingToFirestore({user,color:u.color,type,start,end,date:selected.date,computer:selected.comp});
   overlay.style.display=popup.style.display="none";
 };
 
-// DELETE BOOKING
 deleteBookingBtn.onclick = async ()=>{
-  const user = userSelect.value;
-  if(!user){ error.textContent="Select a user"; return; }
+  const user=userSelect.value; if(!user){ error.textContent="Select a user"; return; }
   const bookingsSnap = await getDocs(collection(db,"bookings"));
-  for(const b of bookingsSnap.docs){
-    const data = b.data();
-    if(data.date===selected.date && data.computer===selected.comp && data.user===user){
-      await deleteDoc(b.ref);
-      break;
-    }
-  }
+  for(const b of bookingsSnap.docs){ const data=b.data(); if(data.date===selected.date && data.computer===selected.comp && data.user===user){ await deleteDoc(b.ref); break; } }
   await loadBookings();
-  overlay.style.display = popup.style.display = "none";
+  overlay.style.display=popup.style.display="none";
 };
 
-// Month arrows
 document.getElementById("prev0").onclick = ()=>{ month[0]--; if(month[0]<0){month[0]=11;year[0]--;} renderCalendar(0); };
 document.getElementById("next0").onclick = ()=>{ month[0]++; if(month[0]>11){month[0]=0;year[0]++;} renderCalendar(0); };
 document.getElementById("prev1").onclick = ()=>{ month[1]--; if(month[1]<0){month[1]=11;year[1]--;} renderCalendar(1); };
@@ -276,5 +231,3 @@ await loadBookings();
 </script>
 </body>
 </html>
-
-
