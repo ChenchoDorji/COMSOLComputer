@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Lab Booking System</title>
+<title>Lab Booking System – Firebase Version</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial,sans-serif; background:#f4f6f8; margin:0; padding:20px; }
@@ -21,12 +21,12 @@ h1 { text-align:center; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:999; }
 .popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:15px; width:350px; z-index:1000; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:none; }
 .error { color:#c0392b; font-size:12px; margin-top:6px; }
-button { cursor:pointer; }
+button { cursor:pointer; margin-top:5px; }
 </style>
 </head>
 <body>
 
-<h1>Lab Booking System</h1>
+<h1>Lab Booking System – Firebase Version</h1>
 
 <div class="section">
   <h2>Users</h2>
@@ -42,7 +42,7 @@ button { cursor:pointer; }
       <span id="month0"></span>
       <span class="arrow" id="next0">→</span>
     </div>
-    <h3 id="computer0" class="editable">Computer 1</h3>
+    <h3 id="computer0" class="editable"></h3>
     <div class="days" id="days0"></div>
   </div>
   <div class="calendar">
@@ -51,7 +51,7 @@ button { cursor:pointer; }
       <span id="month1"></span>
       <span class="arrow" id="next1">→</span>
     </div>
-    <h3 id="computer1" class="editable">Computer 2</h3>
+    <h3 id="computer1" class="editable"></h3>
     <div class="days" id="days1"></div>
   </div>
 </div>
@@ -72,12 +72,11 @@ button { cursor:pointer; }
 </div>
 
 <script type="module">
+// ===== FIREBASE SETUP =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc } 
+import { getFirestore, collection, doc, getDoc, setDoc, getDocs, addDoc, onSnapshot } 
   from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
 
-// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyBEs0MJIB5uJZ_HF73jd3kjd3ltU0hrFVw",
   authDomain: "labbookingsystem2026.firebaseapp.com",
@@ -87,13 +86,13 @@ const firebaseConfig = {
   appId: "1:76507123055:web:5438a95b467b7b86262c9a",
   measurementId: "G-M5N2T033FS"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const analytics = getAnalytics(app);
 
-// ===== STATE =====
-let users = [];
-let bookings = [];
+// ===== GLOBALS =====
+let localUsers = [];
+let localBookings = [];
 let computers = ["Computer 1","Computer 2"];
 let month = [new Date().getMonth(), new Date().getMonth()];
 let year = [new Date().getFullYear(), new Date().getFullYear()];
@@ -113,13 +112,46 @@ const endInput = document.getElementById("end");
 const saveBookingBtn = document.getElementById("saveBookingBtn");
 const closePopupBtn = document.getElementById("closePopupBtn");
 
+// ===== FIRESTORE FUNCTIONS =====
+async function loadComputers() {
+  const docSnap = await getDoc(doc(db,"settings","computers"));
+  if(docSnap.exists()){ computers = docSnap.data().names; }
+  document.getElementById("computer0").textContent = computers[0];
+  document.getElementById("computer1").textContent = computers[1];
+}
+
+async function saveComputers() {
+  await setDoc(doc(db,"settings","computers"), { names: computers });
+}
+
+async function loadUsers() {
+  const usersSnap = await getDocs(collection(db,"users"));
+  localUsers = [];
+  usersSnap.forEach(u=>localUsers.push({name:u.data().name, color:colors[localUsers.length%colors.length]}));
+  renderUsers();
+}
+
+async function addUserToFirestore(name) {
+  await addDoc(collection(db,"users"), { name });
+  await loadUsers();
+}
+
+async function loadBookings() {
+  const bookingsSnap = await getDocs(collection(db,"bookings"));
+  localBookings = [];
+  bookingsSnap.forEach(b=>localBookings.push({...b.data(), id:b.id}));
+  renderCalendar(0);
+  renderCalendar(1);
+}
+
+async function addBookingToFirestore(b) {
+  await addDoc(collection(db,"bookings"), b);
+  await loadBookings();
+}
+
+// ===== RENDER FUNCTIONS =====
 function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
-// ===== DUMMY LOCAL STORAGE for demo (replace with Firestore calls) =====
-let localUsers = [];
-let localBookings = [];
-
-// ===== USERS =====
 function renderUsers(){
   userList.innerHTML="";
   userSelect.innerHTML="";
@@ -128,25 +160,7 @@ function renderUsers(){
     userSelect.innerHTML += `<option>${u.name}</option>`;
   });
 }
-addUserBtn.onclick = ()=>{
-  const name = newUserInput.value.trim();
-  if(!name || localUsers.find(u=>u.name===name)) return;
-  localUsers.push({name, color: colors[localUsers.length%colors.length]});
-  newUserInput.value="";
-  renderUsers();
-};
 
-// ===== EDIT COMPUTER NAMES =====
-document.getElementById("computer0").onclick = ()=>{
-  const newName = prompt("Enter name for Computer 1", computers[0]);
-  if(newName){ computers[0]=newName; renderCalendar(0); document.getElementById("computer0").textContent=newName; }
-};
-document.getElementById("computer1").onclick = ()=>{
-  const newName = prompt("Enter name for Computer 2", computers[1]);
-  if(newName){ computers[1]=newName; renderCalendar(1); document.getElementById("computer1").textContent=newName; }
-};
-
-// ===== CALENDAR =====
 function renderCalendar(idx){
   const box = document.getElementById("days"+idx);
   box.innerHTML="";
@@ -163,7 +177,7 @@ function renderCalendar(idx){
     cell.onclick = ()=>{ selected={comp:idx,date}; popupTitle.textContent=`${computers[idx]} – ${date}`; overlay.style.display=popup.style.display="block"; error.textContent=""; };
     localBookings.filter(b=>b.date===date && b.computer===idx).forEach(b=>{
       const div = document.createElement("div");
-      div.className="booking"; div.style.background=b.color;
+      div.className="booking"; div.style.background=b.color || colors[0];
       div.textContent = b.type==="day"?b.user:`${b.user} ${b.start}-${b.end}`;
       cell.appendChild(div);
     });
@@ -172,15 +186,26 @@ function renderCalendar(idx){
   document.getElementById("month"+idx).textContent = new Date(year[idx],month[idx]).toLocaleString("default",{month:"long",year:"numeric"});
 }
 
-// ===== NAVIGATION =====
-document.getElementById("prev0").onclick = ()=>{ month[0]--; if(month[0]<0){month[0]=11;year[0]--;} renderCalendar(0); };
-document.getElementById("next0").onclick = ()=>{ month[0]++; if(month[0]>11){month[0]=0;year[0]++;} renderCalendar(0); };
-document.getElementById("prev1").onclick = ()=>{ month[1]--; if(month[1]<0){month[1]=11;year[1]--;} renderCalendar(1); };
-document.getElementById("next1").onclick = ()=>{ month[1]++; if(month[1]>11){month[1]=0;year[1]++;} renderCalendar(1); };
+// ===== EVENTS =====
+addUserBtn.onclick = async ()=>{
+  const name = newUserInput.value.trim();
+  if(!name || localUsers.find(u=>u.name===name)) return;
+  await addUserToFirestore(name);
+  newUserInput.value="";
+};
 
-// ===== POPUP =====
+document.getElementById("computer0").onclick = async ()=>{
+  const newName = prompt("Enter name for Computer 1", computers[0]);
+  if(newName){ computers[0]=newName; await saveComputers(); renderCalendar(0); document.getElementById("computer0").textContent=newName; }
+};
+document.getElementById("computer1").onclick = async ()=>{
+  const newName = prompt("Enter name for Computer 2", computers[1]);
+  if(newName){ computers[1]=newName; await saveComputers(); renderCalendar(1); document.getElementById("computer1").textContent=newName; }
+};
+
 closePopupBtn.onclick = ()=>{ overlay.style.display=popup.style.display="none"; error.textContent=""; };
-saveBookingBtn.onclick = ()=>{
+
+saveBookingBtn.onclick = async ()=>{
   const user = userSelect.value;
   const type = document.querySelector("input[name=type]:checked").value;
   const start = startInput.value;
@@ -190,15 +215,21 @@ saveBookingBtn.onclick = ()=>{
   const clash = localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end> b.start)));
   if(clash){ error.textContent="Time clash"; return; }
   const u = localUsers.find(x=>x.name===user);
-  localBookings.push({user, color:u.color, type, start, end, date:selected.date, computer:selected.comp});
+  await addBookingToFirestore({user, color:u.color, type, start, end, date:selected.date, computer:selected.comp});
   overlay.style.display=popup.style.display="none";
-  renderCalendar(selected.comp);
 };
 
-// ===== INIT =====
-renderUsers();
-renderCalendar(0);
-renderCalendar(1);
+// Month arrows
+document.getElementById("prev0").onclick = ()=>{ month[0]--; if(month[0]<0){month[0]=11;year[0]--;} renderCalendar(0); };
+document.getElementById("next0").onclick = ()=>{ month[0]++; if(month[0]>11){month[0]=0;year[0]++;} renderCalendar(0); };
+document.getElementById("prev1").onclick = ()=>{ month[1]--; if(month[1]<0){month[1]=11;year[1]--;} renderCalendar(1); };
+document.getElementById("next1").onclick = ()=>{ month[1]++; if(month[1]>11){month[1]=0;year[1]++;} renderCalendar(1); };
+
+// ===== INITIAL LOAD =====
+await loadComputers();
+await loadUsers();
+await loadBookings();
 </script>
+
 </body>
 </html>
