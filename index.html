@@ -74,6 +74,7 @@ h1 { text-align:center; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import { getFirestore, collection, getDocs, addDoc } 
   from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -88,6 +89,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const analytics = getAnalytics(app);
 
 // ===== DOM ELEMENTS =====
 const newUser = document.getElementById("newUser");
@@ -113,17 +115,27 @@ function isoDate(y,m,d){ return `${y}-${String(m+1).padStart(2,"0")}-${String(d)
 
 // ===== USERS =====
 async function loadUsers(){
-  const snapshot = await getDocs(collection(db,"users"));
-  users = snapshot.docs.map(d=>d.data());
-  renderUsers();
+  try {
+    const snapshot = await getDocs(collection(db,"users"));
+    users = snapshot.docs.map(d=>d.data());
+    renderUsers();
+  } catch(e) {
+    console.error("Error loading users:", e);
+    error.textContent = "Cannot load users. Check Firestore rules.";
+  }
 }
 
 async function addUser(){
   const name = newUser.value.trim();
   if(!name || users.some(u=>u.name===name)) return;
-  await addDoc(collection(db,"users"), { name, color: colors[users.length % colors.length] });
-  newUser.value = "";
-  await loadUsers();
+  try {
+    await addDoc(collection(db,"users"), { name, color: colors[users.length % colors.length] });
+    newUser.value = "";
+    await loadUsers();
+  } catch(e) {
+    console.error("Error adding user:", e);
+    error.textContent = "Cannot add user. Check Firestore rules (allow read/write for testing).";
+  }
 }
 
 function renderUsers(){
@@ -137,10 +149,15 @@ function renderUsers(){
 
 // ===== BOOKINGS =====
 async function loadBookings(){
-  const snapshot = await getDocs(collection(db,"bookings"));
-  bookings = snapshot.docs.map(d=>d.data());
-  renderCalendar(0);
-  renderCalendar(1);
+  try {
+    const snapshot = await getDocs(collection(db,"bookings"));
+    bookings = snapshot.docs.map(d=>d.data());
+    renderCalendar(0);
+    renderCalendar(1);
+  } catch(e){
+    console.error("Error loading bookings:", e);
+    error.textContent = "Cannot load bookings. Check Firestore rules.";
+  }
 }
 
 async function saveBooking(){
@@ -159,9 +176,14 @@ async function saveBooking(){
   if(clash){ error.textContent="Time clash"; return; }
 
   const u = users.find(x=>x.name===user);
-  await addDoc(collection(db,"bookings"), { user, color:u.color, type, start:startTime, end:endTime, date:selected.date, computer:selected.comp });
-  await loadBookings();
-  closePopup();
+  try {
+    await addDoc(collection(db,"bookings"), { user, color:u.color, type, start:startTime, end:endTime, date:selected.date, computer:selected.comp });
+    await loadBookings();
+    closePopup();
+  } catch(e) {
+    console.error("Error saving booking:", e);
+    error.textContent = "Cannot save booking. Check Firestore rules.";
+  }
 }
 
 // ===== CALENDAR =====
