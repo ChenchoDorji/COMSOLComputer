@@ -68,13 +68,13 @@ button { cursor:pointer; margin-top:5px; }
   <label>To <input type="time" id="end" value="18:00"></label>
   <div class="error" id="error"></div><br>
   <button id="saveBookingBtn">Save</button>
+  <button id="deleteBookingBtn">Delete Booking</button>
   <button id="closePopupBtn">Cancel</button>
 </div>
 
 <script type="module">
-// ===== FIREBASE SETUP =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, setDoc, getDocs, addDoc, onSnapshot } 
+import { getFirestore, collection, doc, getDoc, setDoc, getDocs, addDoc, deleteDoc, query, where } 
   from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -90,7 +90,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ===== GLOBALS =====
 let localUsers = [];
 let localBookings = [];
 let computers = ["Computer 1","Computer 2"];
@@ -111,6 +110,7 @@ const startInput = document.getElementById("start");
 const endInput = document.getElementById("end");
 const saveBookingBtn = document.getElementById("saveBookingBtn");
 const closePopupBtn = document.getElementById("closePopupBtn");
+const deleteBookingBtn = document.getElementById("deleteBookingBtn");
 
 // ===== FIRESTORE FUNCTIONS =====
 async function loadComputers() {
@@ -156,8 +156,34 @@ function renderUsers(){
   userList.innerHTML="";
   userSelect.innerHTML="";
   localUsers.forEach(u=>{
-    userList.innerHTML += `<div>${u.name}</div>`;
+    // dropdown
     userSelect.innerHTML += `<option>${u.name}</option>`;
+    
+    // list with remove button
+    const div = document.createElement("div");
+    div.textContent = u.name + " ";
+    const btn = document.createElement("button");
+    btn.textContent = "Remove";
+    btn.onclick = async () => {
+      if(!confirm(`Remove user "${u.name}" and all their bookings?`)) return;
+
+      // Remove user
+      const usersSnap = await getDocs(collection(db,"users"));
+      for(const docSnap of usersSnap.docs){
+        if(docSnap.data().name === u.name) await deleteDoc(docSnap.ref);
+      }
+
+      // Remove bookings
+      const bookingsSnap = await getDocs(collection(db,"bookings"));
+      for(const docSnap of bookingsSnap.docs){
+        if(docSnap.data().user === u.name) await deleteDoc(docSnap.ref);
+      }
+
+      await loadUsers();
+      await loadBookings();
+    };
+    div.appendChild(btn);
+    userList.appendChild(div);
   });
 }
 
@@ -205,6 +231,7 @@ document.getElementById("computer1").onclick = async ()=>{
 
 closePopupBtn.onclick = ()=>{ overlay.style.display=popup.style.display="none"; error.textContent=""; };
 
+// SAVE BOOKING
 saveBookingBtn.onclick = async ()=>{
   const user = userSelect.value;
   const type = document.querySelector("input[name=type]:checked").value;
@@ -212,11 +239,27 @@ saveBookingBtn.onclick = async ()=>{
   const end = endInput.value;
   if(!user){ error.textContent="Select a user"; return; }
   if(type==="hours" && end<=start){ error.textContent="Invalid time range"; return; }
-  const clash = localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end> b.start)));
+  const clash = localBookings.some(b=>b.date===selected.date && b.computer===selected.comp && (b.type==="day" || type==="day" || (start<b.end && end>b.start)));
   if(clash){ error.textContent="Time clash"; return; }
   const u = localUsers.find(x=>x.name===user);
   await addBookingToFirestore({user, color:u.color, type, start, end, date:selected.date, computer:selected.comp});
   overlay.style.display=popup.style.display="none";
+};
+
+// DELETE BOOKING
+deleteBookingBtn.onclick = async ()=>{
+  const user = userSelect.value;
+  if(!user){ error.textContent="Select a user"; return; }
+  const bookingsSnap = await getDocs(collection(db,"bookings"));
+  for(const b of bookingsSnap.docs){
+    const data = b.data();
+    if(data.date===selected.date && data.computer===selected.comp && data.user===user){
+      await deleteDoc(b.ref);
+      break;
+    }
+  }
+  await loadBookings();
+  overlay.style.display = popup.style.display = "none";
 };
 
 // Month arrows
@@ -229,7 +272,7 @@ document.getElementById("next1").onclick = ()=>{ month[1]++; if(month[1]>11){mon
 await loadComputers();
 await loadUsers();
 await loadBookings();
-</script>
 
+</script>
 </body>
 </html>
